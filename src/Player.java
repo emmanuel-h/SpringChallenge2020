@@ -5,8 +5,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
-//TODO: Player collisions
-//TODO: Take care of wrap grid
+// TODO: Player collisions
+// TODO: Take care of wrap grid
+// TODO: Have an updated map with pellets (remove pellets from map when eat)
+// TODO: Switch form when facing an enemy
+// TODO: Have an updated map with unvisited floors (go here instead of random move)
 class Player {
 
     static int myScore = 0;
@@ -14,8 +17,6 @@ class Player {
     static int width; // size of the grid
     static int height; // top left corner is (x=0, y=0)
     static int visiblePacCount; // all your pacs and enemy pacs in sight
-//    static Map<Integer, Pac> allyPacs = new HashMap<>();
-//    static Map<Integer, Pac> enemyPacs = new HashMap<>();
     static int visiblePelletCount; // all pellets in sight
     static int[][] map;
     static List<Pellet> pelletsMap;
