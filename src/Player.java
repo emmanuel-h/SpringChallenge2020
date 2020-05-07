@@ -32,6 +32,9 @@ class Player {
     static Map<Integer, Pac> enemyPacsLastMove = new HashMap<>();
 
     static Map<Integer, Direction> directions = new HashMap<>();
+    static int turn;
+    static int pacWhoUsedSpeed;
+    static boolean speedUsedThisTurn;
 
     public static void main(final String[] args) {
         final Scanner in = new Scanner(System.in);
@@ -51,7 +54,8 @@ class Player {
         }
 
         // game loop
-        while (true) {
+        for (turn = 0; turn < 200 ; turn ++) {
+            speedUsedThisTurn = false;
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
             myScore = in.nextInt();
@@ -118,7 +122,7 @@ class Player {
     }
 
     static void chooseMove(final Pac pac) {
-        if (!firstTurn && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
+        if (!firstTurn && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
             isBlocked(pac);
         } else {
             findNextPellet(pac);
@@ -171,11 +175,17 @@ class Player {
     }
 
     static void findNextPellet(final Pac pac) {
-        final Pellet pelletTogo = pelletsMap
-                .stream()
-                .max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-                .orElseGet(() -> noPelletInSight(pac));
-        move += "|MOVE " + pac.id + " " + pelletTogo.x + " " + pelletTogo.y;
+        if (pac.abilityCooldown == 0 && !speedUsedThisTurn) {
+            move += "|SPEED " + pac.id;
+            pacWhoUsedSpeed = pac.id;
+            speedUsedThisTurn = true;
+        } else {
+            final Pellet pelletTogo = pelletsMap
+                    .stream()
+                    .max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
+                    .orElseGet(() -> noPelletInSight(pac));
+            move += "|MOVE " + pac.id + " " + pelletTogo.x + " " + pelletTogo.y;
+        }
     }
 
     static Pellet noPelletInSight(final Pac pac) {
