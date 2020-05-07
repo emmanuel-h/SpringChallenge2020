@@ -67,7 +67,6 @@ class Player {
                 int x = in.nextInt();
                 int y = in.nextInt();
                 int value = in.nextInt(); // amount of points this pellet is worth
-                map[x][y] = getMapInt(String.valueOf(value));
                 pelletsMap.add(new Pellet(x, y, value));
             }
             move = "";
@@ -84,15 +83,26 @@ class Player {
         Pellet pelletTogo = pelletsMap
                 .stream()
                 .max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-                .orElseGet(() -> {
-                    
-                });
+                .orElseGet(() -> noPelletInSight(pac));
         move += "|MOVE " + pac.id + " " + pelletTogo.x + " " + pelletTogo.y; // MOVE <pacId> <x> <y>
+    }
+
+    static Pellet noPelletInSight(Pac pac) {
+        if ((pac.x+1 < width) && (map[pac.x + 1][pac.y] == -1)) {
+            return new Pellet(pac.x + 1, pac.y);
+        }
+        if ((pac.y+1 < height) && (map[pac.x][pac.y + 1] == -1)) {
+            return new Pellet(pac.x, pac.y + 1);
+        }
+        if ((pac.x-1 > 0) && (map[pac.x - 1][pac.y] == -1)) {
+            return new Pellet(pac.x - 1, pac.y);
+        }
+        return new Pellet(pac.x, pac.y - 1);
     }
 
     // UTILS
 
-    public static int getMapInt(String mapValue) {
+    static int getMapInt(String mapValue) {
         switch (mapValue) {
             case " ":
                 return -1;
@@ -103,6 +113,11 @@ class Player {
         }
     }
 
+    enum Grid {
+        FLOOR,
+        WALL
+    }
+
     // OBJECTS
 
     static class Pellet {
@@ -110,6 +125,11 @@ class Player {
         int x;
         int y;
         int value;
+
+        public Pellet(final int x, final int y) {
+            this.x = x;
+            this.y = y;
+        }
 
         public Pellet(final int x, final int y, final int value) {
             this.x = x;
