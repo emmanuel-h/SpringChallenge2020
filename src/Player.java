@@ -72,7 +72,6 @@ class Player {
                 pac.typeId = in.next();
                 pac.speedTurnsLeft = in.nextInt();
                 pac.abilityCooldown = in.nextInt();
-                pac.ally = mine;
                 if (mine) {
                     allyPacs.put(pacId, pac);
                     setDirection(pac);
@@ -80,7 +79,6 @@ class Player {
                     enemyPacs.put(pacId, pac);
                 }
                 potentialPellets.remove(new Case(pac.x, pac.y));
-                pellets.remove(new Case(pac.x, pac.y));
             }
             visiblePelletCount = in.nextInt(); // all pellets in sight
             for (int i = 0; i < visiblePelletCount; i++) {
@@ -176,7 +174,7 @@ class Player {
     }
 
     static void findNextPellet(final Pac pac) {
-        if (pac.abilityCooldown == 0 && !speedUsedThisTurn /*&& giveMeAChance(4)*/ && !(turn == 0)) {
+        if (pac.abilityCooldown == 0 && !speedUsedThisTurn && !(turn == 0)) {
             move += "|SPEED " + pac.id;
             pacWhoUsedSpeed = pac.id;
             speedUsedThisTurn = true;
@@ -187,14 +185,9 @@ class Player {
                     .orElseGet(() ->
                             potentialPellets.stream().max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
                             .get());
-//                            .orElseGet(() -> noPelletInSight(pac)));
             pellets.remove(caseTogo);
             move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
         }
-    }
-
-    static boolean giveMeAChance(int rand) {
-        return new Random().nextInt(rand) < 1;
     }
 
     // TODO: Take care when back is a wall
@@ -242,6 +235,10 @@ class Player {
         WEST
     }
 
+    static boolean giveMeAChance(int rand) {
+        return new Random().nextInt(rand) < 1;
+    }
+
     // OBJECTS
 
     static class Pac {
@@ -251,7 +248,6 @@ class Player {
         String typeId;
         int speedTurnsLeft;
         int abilityCooldown;
-        boolean ally;
 
         @Override
         public String toString() {
