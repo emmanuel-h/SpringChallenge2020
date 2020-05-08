@@ -1,14 +1,16 @@
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
 
 // TODO: Player collisions
 // TODO: Take care of wrap grid
 // TODO: When blocked, don't use direction to test if an enemy is nearby
+// TODO: Don't separate pellets of possiblePellets. Just add a pound on pellets in sight.
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -20,8 +22,8 @@ class Player {
     static int height; // top left corner is (x=0, y=0)
     static int visiblePacCount; // all your pacs and enemy pacs in sight
     static int visiblePelletCount; // all pellets in sight
-    static List<Case> pellets;
-    static List<Case> potentialPellets = new ArrayList<>();
+    static Set<Case> pellets;
+    static Set<Case> potentialPellets = new HashSet<>();
     static String move;
 
     static Map<Integer, Pac> allyPacs = new HashMap<>();
@@ -47,7 +49,7 @@ class Player {
             final String row = in.nextLine(); // one line of the grid: space " " is floor, pound "#" is wall
             for (int j = 0; j < row.length(); j++) {
                 if (' ' == (row.charAt(j))) {
-                    potentialPellets.add(new Case(Grid.FLOOR, j, i, 1));
+                    potentialPellets.add(new Case(Grid.FLOOR, j, i, 1, 0));
                 }
             }
         }
@@ -57,7 +59,7 @@ class Player {
             speedUsedThisTurn = false;
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
-            pellets = new ArrayList<>();
+            pellets = new HashSet<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
             visiblePacCount = in.nextInt(); // all your pacs and enemy pacs in sight
@@ -84,7 +86,9 @@ class Player {
                 final int x = in.nextInt();
                 final int y = in.nextInt();
                 final int value = in.nextInt(); // amount of points this pellet is worth
-                pellets.add(new Case(Grid.FLOOR, x, y, value));
+                final Case aCase = new Case(Grid.FLOOR, x, y, value, turn);
+                pellets.add(aCase);
+                potentialPellets.add(aCase);
             }
             move = "";
             for (final Pac pac: allyPacs.values()) {
@@ -234,7 +238,7 @@ class Player {
         WEST
     }
 
-    static boolean giveMeAChance(int rand) {
+    static boolean giveMeAChance(final int rand) {
         return new Random().nextInt(rand) < 1;
     }
 
@@ -266,13 +270,14 @@ class Player {
         int x;
         int y;
         int value;
+        int turnLastSeen;
 
         public Case(final int x, final int y) {
             this.x = x;
             this.y = y;
         }
 
-        public Case(final Grid type, final int x, final int y, final int value) {
+        public Case(final Grid type, final int x, final int y, final int value, final int turnLastSee) {
             this.type = type;
             this.x = x;
             this.y = y;
@@ -281,8 +286,9 @@ class Player {
 
         public int isWorth(final int playerX, final int playerY) {
             int worth = this.value >= 10 ? 1000 : this.value;
-            worth -= Math.abs(this.x - playerX);
-            worth -= Math.abs(this.y - playerY);
+            worth -= Math.abs(playerX - this.x);
+            worth -= Math.abs(playerY - this.y);
+            worth -= 2 * (turn - this.turnLastSeen);
             return worth;
         }
 
