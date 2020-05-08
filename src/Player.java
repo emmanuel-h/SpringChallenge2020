@@ -8,8 +8,7 @@ import java.util.Scanner;
 
 // TODO: Player collisions
 // TODO: Take care of wrap grid
-// TODO: Have an updated map with pellets (remove pellets from map when eat)
-// TODO: Have an updated map with unvisited floors (go here instead of random move)
+// TODO: When blocked, don't use direction to test if an enemy is nearby
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
