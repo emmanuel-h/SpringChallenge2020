@@ -9,7 +9,6 @@ import java.util.Scanner;
 // TODO: Player collisions
 // TODO: Take care of wrap grid
 // TODO: Have an updated map with pellets (remove pellets from map when eat)
-// TODO: Switch form when facing an enemy
 // TODO: Have an updated map with unvisited floors (go here instead of random move)
 class Player {
 
@@ -22,10 +21,9 @@ class Player {
     static int height; // top left corner is (x=0, y=0)
     static int visiblePacCount; // all your pacs and enemy pacs in sight
     static int visiblePelletCount; // all pellets in sight
-    static int[][] map;
-    static List<Pellet> pelletsMap;
+    static List<Case> pellets;
+    static List<Case> potentialPellets = new ArrayList<>();
     static String move;
-    static boolean firstTurn = true;
 
     static Map<Integer, Pac> allyPacs = new HashMap<>();
     static Map<Integer, Pac> enemyPacs = new HashMap<>();
@@ -41,7 +39,6 @@ class Player {
         final Scanner in = new Scanner(System.in);
         width = in.nextInt();
         height = in.nextInt();
-        map = new int[width][height];
 
         if (in.hasNextLine()) {
             in.nextLine();
@@ -50,7 +47,9 @@ class Player {
         for (int i = 0; i < height; i++) {
             final String row = in.nextLine(); // one line of the grid: space " " is floor, pound "#" is wall
             for (int j = 0; j < row.length(); j++) {
-                map[j][i] = getMapInt(String.valueOf(row.charAt(j)));
+                if (' ' == (row.charAt(j))) {
+                    potentialPellets.add(new Case(Grid.FLOOR, j, i, 1));
+                }
             }
         }
 
@@ -59,6 +58,7 @@ class Player {
             speedUsedThisTurn = false;
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
+            pellets = new ArrayList<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
             visiblePacCount = in.nextInt(); // all your pacs and enemy pacs in sight
@@ -79,14 +79,15 @@ class Player {
                 } else {
                     enemyPacs.put(pacId, pac);
                 }
+                potentialPellets.remove(new Case(pac.x, pac.y));
+                pellets.remove(new Case(pac.x, pac.y));
             }
             visiblePelletCount = in.nextInt(); // all pellets in sight
-            pelletsMap = new ArrayList<>();
             for (int i = 0; i < visiblePelletCount; i++) {
                 final int x = in.nextInt();
                 final int y = in.nextInt();
                 final int value = in.nextInt(); // amount of points this pellet is worth
-                pelletsMap.add(new Pellet(x, y, value));
+                pellets.add(new Case(Grid.FLOOR, x, y, value));
             }
             move = "";
             for (final Pac pac: allyPacs.values()) {
@@ -95,7 +96,6 @@ class Player {
             System.out.println(move.substring(1));
             allyPacsLastMove = allyPacs;
             enemyPacsLastMove = enemyPacs;
-            firstTurn = false;
         }
     }
 
@@ -123,7 +123,7 @@ class Player {
     }
 
     static void chooseMove(final Pac pac) {
-        if (!firstTurn && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
+        if (!(turn == 0) && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
             isBlocked(pac);
         } else {
             findNextPellet(pac);
@@ -150,15 +150,15 @@ class Player {
     static void isBlocked(final Pac pac) {
         final Pac enemyPac = isBlockedByEnemy(pac);
         if (enemyPac != null && canKill(enemyPac, pac)) {
-            final Pellet pellet = goForward(pac);
-            move += "|MOVE " + pac.id + " " + pellet.x + " " + pellet.y;
+            final Case aCase = goForward(pac);
+            move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
         } else if (enemyPac != null) {
             move += "|SWITCH " + pac.id + " " + switchFormToKill(enemyPac);
         } else if (pac.abilityCooldown == 0) {
             move += "|SWITCH " + pac.id + " " + switchFormToKill(pac);
         } else {
-            final Pellet pellet = goBack(pac);
-            move += "|MOVE " + pac.id + " " + pellet.x + " " + pellet.y;
+            final Case aCase = goBack(pac);
+            move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
         }
     }
 
@@ -176,16 +176,20 @@ class Player {
     }
 
     static void findNextPellet(final Pac pac) {
-        if (pac.abilityCooldown == 0 && !speedUsedThisTurn && giveMeAChance(4)) {
+        if (pac.abilityCooldown == 0 && !speedUsedThisTurn /*&& giveMeAChance(4)*/ && !(turn == 0)) {
             move += "|SPEED " + pac.id;
             pacWhoUsedSpeed = pac.id;
             speedUsedThisTurn = true;
-        } else {
-            final Pellet pelletTogo = pelletsMap
+        } else{
+            final Case caseTogo = pellets
                     .stream()
                     .max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-                    .orElseGet(() -> noPelletInSight(pac));
-            move += "|MOVE " + pac.id + " " + pelletTogo.x + " " + pelletTogo.y;
+                    .orElseGet(() ->
+                            potentialPellets.stream().max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
+                            .get());
+//                            .orElseGet(() -> noPelletInSight(pac)));
+            pellets.remove(caseTogo);
+            move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
         }
     }
 
@@ -193,67 +197,38 @@ class Player {
         return new Random().nextInt(rand) < 1;
     }
 
-    static Pellet noPelletInSight(final Pac pac) {
-        final Direction direction = directions.get(pac.id);
-        // I can go in a direction without backtrack
-        if (direction != Direction.WEST && (pac.x+1 < width) && (map[pac.x + 1][pac.y] == -1)) {
-            return new Pellet(pac.x + 1, pac.y);
-        }
-        if (direction != Direction.NORTH && (pac.y+1 < height) && (map[pac.x][pac.y + 1] == -1)) {
-            return new Pellet(pac.x, pac.y + 1);
-        }
-        if (direction != Direction.EAST && (pac.x-1 > 0) && (map[pac.x - 1][pac.y] == -1)) {
-            return new Pellet(pac.x - 1, pac.y);
-        }
-        if (direction != Direction.SOUTH && (pac.y-1 > 0) && (map[pac.x][pac.y - 1] == -1)) {
-            return new Pellet(pac.x, pac.y - 1);
-        }
-        // I'm forced to backtrack
-        return goBack(pac);
-    }
-
-    static Pellet goBack(final Pac pac) {
+    // TODO: Take care when back is a wall
+    static Case goBack(final Pac pac) {
         switch (directions.get(pac.id)) {
             case WEST:
-                return new Pellet(pac.x + 1, pac.y);
+                return new Case(pac.x + 1, pac.y);
             case EAST:
-                return new Pellet(pac.x - 1, pac.y);
+                return new Case(pac.x - 1, pac.y);
             case SOUTH:
-                return new Pellet(pac.x, pac.y - 1);
+                return new Case(pac.x, pac.y - 1);
             case NORTH:
             default:
-                return new Pellet(pac.x, pac.y + 1);
+                return new Case(pac.x, pac.y + 1);
 
         }
     }
 
-    static Pellet goForward(final Pac pac) {
+    static Case goForward(final Pac pac) {
         switch (directions.get(pac.id)) {
             case WEST:
-                return new Pellet(pac.x - 1, pac.y);
+                return new Case(pac.x - 1, pac.y);
             case EAST:
-                return new Pellet(pac.x + 1, pac.y);
+                return new Case(pac.x + 1, pac.y);
             case SOUTH:
-                return new Pellet(pac.x, pac.y + 1);
+                return new Case(pac.x, pac.y + 1);
             case NORTH:
             default:
-                return new Pellet(pac.x, pac.y - 1);
+                return new Case(pac.x, pac.y - 1);
 
         }
     }
 
     // UTILS
-
-    static int getMapInt(final String mapValue) {
-        switch (mapValue) {
-            case " ":
-                return -1;
-            case "#":
-                return -2;
-            default:
-                return Integer.parseInt(mapValue);
-        }
-    }
 
     enum Grid {
         FLOOR,
@@ -268,31 +243,6 @@ class Player {
     }
 
     // OBJECTS
-
-    static class Pellet {
-        int id;
-        int x;
-        int y;
-        int value;
-
-        public Pellet(final int x, final int y) {
-            this.x = x;
-            this.y = y;
-        }
-
-        public Pellet(final int x, final int y, final int value) {
-            this.x = x;
-            this.y = y;
-            this.value = value;
-        }
-
-        public int isWorth(final int playerX, final int playerY) {
-            int worth = this.value >= 10 ? 1000 : this.value;
-            worth -= Math.abs(this.x - playerX);
-            worth -= Math.abs(this.y - playerY);
-            return worth;
-        }
-    }
 
     static class Pac {
         int id;
@@ -313,6 +263,50 @@ class Player {
                     ", speedTurnsLeft=" + this.speedTurnsLeft +
                     ", abilityCooldown=" + this.abilityCooldown +
                     '}';
+        }
+    }
+
+    static class Case {
+        Grid type;
+        int x;
+        int y;
+        int value;
+
+        public Case(final int x, final int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        public Case(final Grid type, final int x, final int y, final int value) {
+            this.type = type;
+            this.x = x;
+            this.y = y;
+            this.value = value;
+        }
+
+        public int isWorth(final int playerX, final int playerY) {
+            int worth = this.value >= 10 ? 1000 : this.value;
+            worth -= Math.abs(this.x - playerX);
+            worth -= Math.abs(this.y - playerY);
+            return worth;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) return true;
+            if (o == null || this.getClass() != o.getClass()) return false;
+
+            final Case aCase = (Case) o;
+
+            if (this.x != aCase.x) return false;
+            return this.y == aCase.y;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = this.x;
+            result = 31 * result + this.y;
+            return result;
         }
     }
 }
