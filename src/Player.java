@@ -3,6 +3,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 
 // TODO: Player collisions
@@ -175,7 +176,7 @@ class Player {
     }
 
     static void findNextPellet(final Pac pac) {
-        if (pac.abilityCooldown == 0 && !speedUsedThisTurn) {
+        if (pac.abilityCooldown == 0 && !speedUsedThisTurn && giveMeAChance(4)) {
             move += "|SPEED " + pac.id;
             pacWhoUsedSpeed = pac.id;
             speedUsedThisTurn = true;
@@ -186,6 +187,10 @@ class Player {
                     .orElseGet(() -> noPelletInSight(pac));
             move += "|MOVE " + pac.id + " " + pelletTogo.x + " " + pelletTogo.y;
         }
+    }
+
+    static boolean giveMeAChance(int rand) {
+        return new Random().nextInt(rand) < 1;
     }
 
     static Pellet noPelletInSight(final Pac pac) {
