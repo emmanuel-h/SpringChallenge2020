@@ -13,6 +13,9 @@ import java.util.stream.Collectors;
 // TODO: Don't separate pellets of possiblePellets. Just add a pound on pellets in sight. (Almost done, now merge sets)
 // TODO: Remove some useless Cases (how to know cases without pellets ?).
 // TODO: Improve heuristic : Increase when a pac is nearby pellet
+// TODO: Change Manhattan distance
+// TODO: Decrease pound of pellet next to another pac
+// TODO: Have a list a superPellet to know when they have disappear
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -24,8 +27,8 @@ class Player {
     static int height; // top left corner is (x=0, y=0)
     static int visiblePacCount; // all your pacs and enemy pacs in sight
     static int visiblePelletCount; // all pellets in sight
-    static Set<Case> pellets;
     static Set<Case> potentialPellets = new HashSet<>();
+    static Set<Case> pelletsReserved;
     static String move;
 
     static Map<Integer, Pac> allyPacs = new HashMap<>();
@@ -61,7 +64,8 @@ class Player {
             speedUsedThisTurn = false;
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
-            pellets = new HashSet<>();
+            final Set<Case> pellets = new HashSet<>();
+            pelletsReserved = new HashSet<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
             visiblePacCount = in.nextInt(); // all your pacs and enemy pacs in sight
@@ -92,9 +96,9 @@ class Player {
                 pellets.add(aCase);
             }
             move = "";
-            final Set<Case> allPellets = allPellets();
+            potentialPellets = updatePelletsList(pellets);
             for (final Pac pac: allyPacs.values()) {
-                chooseMove(pac, allPellets);
+                chooseMove(pac);
             }
             System.out.println(move.substring(1));
             incrementLastSeen();
@@ -114,13 +118,8 @@ class Player {
                 .collect(Collectors.toSet());
     }
 
-    static Set<Case> allPellets() {
-        final Set<Case> allPellets = pellets.stream()
-                .map(p -> {
-                    p.value += 5;
-                    return p;
-                })
-                .collect(Collectors.toSet());
+    static Set<Case> updatePelletsList(final Set<Case> pellets) {
+        final Set<Case> allPellets = new HashSet<>(pellets);
         allPellets.addAll(potentialPellets);
         return allPellets;
     }
@@ -146,11 +145,11 @@ class Player {
         }
     }
 
-    static void chooseMove(final Pac pac, final Set<Case> allPellets) {
+    static void chooseMove(final Pac pac) {
         if (!(turn == 0) && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
             isBlocked(pac);
         } else {
-            findNextPellet(pac, allPellets);
+            findNextPellet(pac);
         }
     }
 
@@ -199,16 +198,17 @@ class Player {
         return null;
     }
 
-    static void findNextPellet(final Pac pac, final Set<Case> allPellets) {
+    static void findNextPellet(final Pac pac) {
         if (pac.abilityCooldown == 0 && !speedUsedThisTurn && !(turn == 0)) {
             move += "|SPEED " + pac.id;
             pacWhoUsedSpeed = pac.id;
             speedUsedThisTurn = true;
         } else{
-            final Case caseTogo = allPellets.stream()
+            final Case caseTogo = potentialPellets.stream()
+                    .filter(p -> !pelletsReserved.contains(p))
                     .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
                     .get();
-            pellets.remove(caseTogo);
+            pelletsReserved.add(caseTogo);
             move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
         }
     }
@@ -306,7 +306,7 @@ class Player {
         }
 
         public int isWorth(final int playerX, final int playerY) {
-            return Math.abs(playerX - this.x) + Math.abs(playerY - this.y) - this.value + (turn - this.turnLastSeen);
+            return Math.abs(playerX - this.x) + Math.abs(playerY - this.y) - this.value + 2*(turn - this.turnLastSeen);
         }
 
         @Override
