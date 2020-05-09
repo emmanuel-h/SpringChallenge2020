@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -6,11 +5,13 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 // TODO: Player collisions
 // TODO: Take care of wrap grid
 // TODO: When blocked, don't use direction to test if an enemy is nearby
 // TODO: Don't separate pellets of possiblePellets. Just add a pound on pellets in sight.
+// TODO: Remove some useless Cases (how to know cases without pellets ?).
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -88,11 +89,11 @@ class Player {
                 final int value = in.nextInt(); // amount of points this pellet is worth
                 final Case aCase = new Case(Grid.FLOOR, x, y, value, turn);
                 pellets.add(aCase);
-                potentialPellets.add(aCase);
             }
             move = "";
+            final Set<Case> allPellets = allPellets();
             for (final Pac pac: allyPacs.values()) {
-                chooseMove(pac);
+                chooseMove(pac, allPellets);
             }
             System.out.println(move.substring(1));
             allyPacsLastMove = allyPacs;
@@ -101,6 +102,17 @@ class Player {
     }
 
     // ALGORITHMS
+
+    static Set<Case> allPellets() {
+        final Set<Case> allPellets = pellets.stream()
+                .map(p -> {
+                    p.value += 5;
+                    return p;
+                })
+                .collect(Collectors.toSet());
+        allPellets.addAll(potentialPellets);
+        return allPellets;
+    }
 
     static void setDirection(final Pac pac) {
         final Pac lastPac;
@@ -123,11 +135,11 @@ class Player {
         }
     }
 
-    static void chooseMove(final Pac pac) {
+    static void chooseMove(final Pac pac, final Set<Case> allPellets) {
         if (!(turn == 0) && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
             isBlocked(pac);
         } else {
-            findNextPellet(pac);
+            findNextPellet(pac, allPellets);
         }
     }
 
@@ -176,18 +188,17 @@ class Player {
         return null;
     }
 
-    static void findNextPellet(final Pac pac) {
+    static void findNextPellet(final Pac pac, final Set<Case> allPellets) {
         if (pac.abilityCooldown == 0 && !speedUsedThisTurn && !(turn == 0)) {
             move += "|SPEED " + pac.id;
             pacWhoUsedSpeed = pac.id;
             speedUsedThisTurn = true;
         } else{
-            final Case caseTogo = pellets
-                    .stream()
+            final Case caseTogo = allPellets.stream()
                     .max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-                    .orElseGet(() ->
-                            potentialPellets.stream().max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-                            .get());
+//                    .orElseGet(() ->
+//                            potentialPellets.stream().max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
+                            .get();
             pellets.remove(caseTogo);
             move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
         }
@@ -308,6 +319,17 @@ class Player {
             int result = this.x;
             result = 31 * result + this.y;
             return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Case{" +
+                    "type=" + this.type +
+                    ", x=" + this.x +
+                    ", y=" + this.y +
+                    ", value=" + this.value +
+                    ", turnLastSeen=" + this.turnLastSeen +
+                    '}';
         }
     }
 }
