@@ -10,8 +10,9 @@ import java.util.stream.Collectors;
 // TODO: Player collisions
 // TODO: Take care of wrap grid
 // TODO: When blocked, don't use direction to test if an enemy is nearby
-// TODO: Don't separate pellets of possiblePellets. Just add a pound on pellets in sight.
+// TODO: Don't separate pellets of possiblePellets. Just add a pound on pellets in sight. (Almost done, now merge sets)
 // TODO: Remove some useless Cases (how to know cases without pellets ?).
+// TODO: Improve heuristic : Increase when a pac is nearby pellet
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -212,7 +213,7 @@ class Player {
         }
     }
 
-    // TODO: Take care when back is a wall
+    // TODO: Take care when back is a wall (side case)
     static Case goBack(final Pac pac) {
         switch (directions.get(pac.id)) {
             case WEST:
