@@ -96,12 +96,22 @@ class Player {
                 chooseMove(pac, allPellets);
             }
             System.out.println(move.substring(1));
+            incrementLastSeen();
             allyPacsLastMove = allyPacs;
             enemyPacsLastMove = enemyPacs;
         }
     }
 
     // ALGORITHMS
+
+    static void incrementLastSeen() {
+        potentialPellets = potentialPellets.stream()
+                .map(p -> {
+                    p.turnLastSeen ++;
+                    return p;
+                })
+                .collect(Collectors.toSet());
+    }
 
     static Set<Case> allPellets() {
         final Set<Case> allPellets = pellets.stream()
@@ -195,10 +205,8 @@ class Player {
             speedUsedThisTurn = true;
         } else{
             final Case caseTogo = allPellets.stream()
-                    .max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-//                    .orElseGet(() ->
-//                            potentialPellets.stream().max(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-                            .get();
+                    .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
+                    .get();
             pellets.remove(caseTogo);
             move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
         }
@@ -288,19 +296,16 @@ class Player {
             this.y = y;
         }
 
-        public Case(final Grid type, final int x, final int y, final int value, final int turnLastSee) {
+        public Case(final Grid type, final int x, final int y, final int value, final int turnLastSeen) {
             this.type = type;
             this.x = x;
             this.y = y;
             this.value = value;
+            this.turnLastSeen = turnLastSeen;
         }
 
         public int isWorth(final int playerX, final int playerY) {
-            int worth = this.value >= 10 ? 1000 : this.value;
-            worth -= Math.abs(playerX - this.x);
-            worth -= Math.abs(playerY - this.y);
-            worth -= 2 * (turn - this.turnLastSeen);
-            return worth;
+            return Math.abs(playerX - this.x) + Math.abs(playerY - this.y) - this.value + (turn - this.turnLastSeen);
         }
 
         @Override
