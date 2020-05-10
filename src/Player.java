@@ -7,6 +7,7 @@ import java.util.stream.Stream;
 // TODO: Improve heuristic : Increase when a pac is nearby pellet
 // TODO: Change Manhattan distance
 // TODO: Decrease pound of pellet next to another pac
+// TODO: When too close of an ally, move away from his target / choose a different target
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -25,7 +26,6 @@ class Player {
     static Map<Integer, Pac> allyPacs = new HashMap<>();
     static Map<Integer, Pac> enemyPacs = new HashMap<>();
     static Map<Integer, Pac> allyPacsLastMove = new HashMap<>();
-    static Map<Integer, Pac> enemyPacsLastMove = new HashMap<>();
 
     static Map<Integer, Direction> directions = new HashMap<>();
     static int turn;
@@ -52,7 +52,7 @@ class Player {
         for (turn = 0; turn < 200 ; turn ++) {
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
-            final Set<Case> pellets = new HashSet<>();
+            final Set<Case> visiblePellets = new HashSet<>();
             superPellets = new HashSet<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
@@ -84,18 +84,17 @@ class Player {
                 if (value == 10) {
                     superPellets.add(aCase);
                 } else {
-                    pellets.add(aCase);
+                    visiblePellets.add(aCase);
                 }
             }
             move = "";
-            potentialPellets = updatePelletsList(pellets);
+            potentialPellets = updatePelletsList(visiblePellets);
             for (final Pac pac: allyPacs.values()) {
                 chooseMove(pac);
             }
             System.out.println(move.substring(1));
             incrementLastSeen();
             allyPacsLastMove = allyPacs;
-            enemyPacsLastMove = enemyPacs;
         }
     }
 
@@ -139,7 +138,7 @@ class Player {
 
     static void chooseMove(final Pac pac) {
         final Pac enemyPac = enemyNearby(pac);
-        if (enemyPac != null && !canKill(enemyPac, pac)) {
+        if (enemyPac != null && !canKill(enemyPac, pac) && pac.noCooldown()) {
             move += "|SWITCH " + pac.id + " " + switchFormToKill(enemyPac);
         } else if (!(turn == 0) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y) && !pac.hasUsedCooldownLastTurn()) {
             final Case aCase = goBackward(pac);
@@ -230,6 +229,10 @@ class Player {
 
         public boolean hasUsedCooldownLastTurn() {
             return this.abilityCooldown == 9;
+        }
+
+        public boolean noCooldown() {
+            return this.abilityCooldown == 0;
         }
 
         @Override
