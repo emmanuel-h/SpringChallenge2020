@@ -1,11 +1,6 @@
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Random;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 // TODO: Player collisions
 // TODO: Take care of wrap grid
@@ -15,7 +10,6 @@ import java.util.stream.Collectors;
 // TODO: Improve heuristic : Increase when a pac is nearby pellet
 // TODO: Change Manhattan distance
 // TODO: Decrease pound of pellet next to another pac
-// TODO: Have a list a superPellet to know when they have disappear
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -29,6 +23,7 @@ class Player {
     static int visiblePelletCount; // all pellets in sight
     static Set<Case> potentialPellets = new HashSet<>();
     static Set<Case> pelletsReserved;
+    static Set<Case> superPellets;
     static String move;
 
     static Map<Integer, Pac> allyPacs = new HashMap<>();
@@ -66,6 +61,7 @@ class Player {
             enemyPacs = new HashMap<>();
             final Set<Case> pellets = new HashSet<>();
             pelletsReserved = new HashSet<>();
+            superPellets = new HashSet<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
             visiblePacCount = in.nextInt(); // all your pacs and enemy pacs in sight
@@ -93,7 +89,11 @@ class Player {
                 final int y = in.nextInt();
                 final int value = in.nextInt(); // amount of points this pellet is worth
                 final Case aCase = new Case(Grid.FLOOR, x, y, value, turn);
-                pellets.add(aCase);
+                if (value == 10) {
+                    superPellets.add(aCase);
+                } else {
+                    pellets.add(aCase);
+                }
             }
             move = "";
             potentialPellets = updatePelletsList(pellets);
@@ -204,7 +204,8 @@ class Player {
             pacWhoUsedSpeed = pac.id;
             speedUsedThisTurn = true;
         } else{
-            final Case caseTogo = potentialPellets.stream()
+            final Case caseTogo = Stream.of(potentialPellets, superPellets)
+                    .flatMap(Collection::stream)
                     .filter(p -> !pelletsReserved.contains(p))
                     .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
                     .get();
