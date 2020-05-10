@@ -2,10 +2,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// TODO: Player collisions
 // TODO: Take care of wrap grid
-// TODO: When blocked, don't use direction to test if an enemy is nearby
-// TODO: Don't separate pellets of possiblePellets. Just add a pound on pellets in sight. (Almost done, now merge sets)
 // TODO: Remove some useless Cases (how to know cases without pellets ?).
 // TODO: Improve heuristic : Increase when a pac is nearby pellet
 // TODO: Change Manhattan distance
@@ -22,7 +19,6 @@ class Player {
     static int visiblePacCount; // all your pacs and enemy pacs in sight
     static int visiblePelletCount; // all pellets in sight
     static Set<Case> potentialPellets = new HashSet<>();
-//    static Set<Case> pelletsReserved;
     static Set<Case> superPellets;
     static String move;
 
@@ -57,7 +53,6 @@ class Player {
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
             final Set<Case> pellets = new HashSet<>();
-//            pelletsReserved = new HashSet<>();
             superPellets = new HashSet<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
@@ -183,13 +178,10 @@ class Player {
     }
 
     static Case findNextPellet(final Pac pac) {
-        final Case caseTogo = Stream.of(potentialPellets, superPellets)
+        return Stream.of(potentialPellets, superPellets)
                 .flatMap(Collection::stream)
-//                .filter(p -> !pelletsReserved.contains(p))
                 .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
                 .get();
-//        pelletsReserved.add(caseTogo);
-        return caseTogo;
     }
 
     // TODO: Take care when back is a wall (side case)
