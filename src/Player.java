@@ -146,10 +146,15 @@ class Player {
     }
 
     static void chooseMove(final Pac pac) {
-        if (!(turn == 0) && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
-            isBlocked(pac);
+        final Pac enemyPac = enemyNearby(pac);
+        if (enemyPac != null && !canKill(enemyPac, pac)) {
+            move += "|SWITCH " + pac.id + " " + switchFormToKill(enemyPac);
+        } else if (!(turn == 0) && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
+            final Case aCase = goBackward(pac);
+            move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
         } else {
-            findNextPellet(pac);
+            final Case caseTogo = findNextPellet(pac);
+            move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
         }
     }
 
@@ -170,52 +175,28 @@ class Player {
         return (SCISSORS.equals(enemyPac.typeId) && ROCK.equals(pac.typeId)) || (PAPER.equals(enemyPac.typeId) && SCISSORS.equals(pac.typeId)) ||(ROCK.equals(enemyPac.typeId) && PAPER.equals(pac.typeId));
     }
 
-    static void isBlocked(final Pac pac) {
-        final Pac enemyPac = isBlockedByEnemy(pac);
-        if (enemyPac != null && canKill(enemyPac, pac)) {
-            final Case aCase = goForward(pac);
-            move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
-        } else if (enemyPac != null) {
-            move += "|SWITCH " + pac.id + " " + switchFormToKill(enemyPac);
-        } else if (pac.abilityCooldown == 0) {
-            move += "|SWITCH " + pac.id + " " + switchFormToKill(pac);
-        } else {
-            final Case aCase = goBack(pac);
-            move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
-        }
-    }
-
-    static Pac isBlockedByEnemy(final Pac pac) {
-        final int x = (directions.get(pac.id) == Direction.WEST) ? pac.x - 1 : (directions.get(pac.id) == Direction.EAST) ? pac.x + 1 : pac.x;
-        final int x2 = (directions.get(pac.id) == Direction.WEST) ? pac.x - 2 : (directions.get(pac.id) == Direction.EAST) ? pac.x + 2 : pac.x;
-        final int y = (directions.get(pac.id) == Direction.NORTH) ? pac.y - 1 : (directions.get(pac.id) == Direction.SOUTH) ? pac.y + 1 : pac.y;
-        final int y2 = (directions.get(pac.id) == Direction.NORTH) ? pac.y - 2 : (directions.get(pac.id) == Direction.SOUTH) ? pac.y + 2 : pac.y;
+    static Pac enemyNearby(final Pac pac) {
+        Pac nearestEnemy = null;
         for (final Pac enemyPac: enemyPacs.values()) {
-            if ((x == enemyPac.x && y == enemyPac.y) || (x2 == enemyPac.x && y2 == enemyPac.y)) {
-                return enemyPac;
+            if ((enemyPac.x >= pac.x - 2 && enemyPac.x <= pac.x + 2) && (enemyPac.y >= pac.y - 2 && enemyPac.y <= pac.y + 2)) {
+                nearestEnemy = enemyPac;
             }
         }
-        return null;
+        return nearestEnemy;
     }
 
-    static void findNextPellet(final Pac pac) {
-        if (pac.abilityCooldown == 0 && !speedUsedThisTurn && !(turn == 0)) {
-            move += "|SPEED " + pac.id;
-            pacWhoUsedSpeed = pac.id;
-            speedUsedThisTurn = true;
-        } else{
-            final Case caseTogo = Stream.of(potentialPellets, superPellets)
-                    .flatMap(Collection::stream)
-                    .filter(p -> !pelletsReserved.contains(p))
-                    .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
-                    .get();
-            pelletsReserved.add(caseTogo);
-            move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
-        }
+    static Case findNextPellet(final Pac pac) {
+        final Case caseTogo = Stream.of(potentialPellets, superPellets)
+                .flatMap(Collection::stream)
+                .filter(p -> !pelletsReserved.contains(p))
+                .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
+                .get();
+        pelletsReserved.add(caseTogo);
+        return caseTogo;
     }
 
     // TODO: Take care when back is a wall (side case)
-    static Case goBack(final Pac pac) {
+    static Case goBackward(final Pac pac) {
         switch (directions.get(pac.id)) {
             case WEST:
                 return new Case(pac.x + 1, pac.y);
@@ -226,21 +207,6 @@ class Player {
             case NORTH:
             default:
                 return new Case(pac.x, pac.y + 1);
-
-        }
-    }
-
-    static Case goForward(final Pac pac) {
-        switch (directions.get(pac.id)) {
-            case WEST:
-                return new Case(pac.x - 1, pac.y);
-            case EAST:
-                return new Case(pac.x + 1, pac.y);
-            case SOUTH:
-                return new Case(pac.x, pac.y + 1);
-            case NORTH:
-            default:
-                return new Case(pac.x, pac.y - 1);
 
         }
     }
