@@ -22,7 +22,7 @@ class Player {
     static int visiblePacCount; // all your pacs and enemy pacs in sight
     static int visiblePelletCount; // all pellets in sight
     static Set<Case> potentialPellets = new HashSet<>();
-    static Set<Case> pelletsReserved;
+//    static Set<Case> pelletsReserved;
     static Set<Case> superPellets;
     static String move;
 
@@ -33,8 +33,6 @@ class Player {
 
     static Map<Integer, Direction> directions = new HashMap<>();
     static int turn;
-    static int pacWhoUsedSpeed;
-    static boolean speedUsedThisTurn;
 
     public static void main(final String[] args) {
         final Scanner in = new Scanner(System.in);
@@ -56,11 +54,10 @@ class Player {
 
         // game loop
         for (turn = 0; turn < 200 ; turn ++) {
-            speedUsedThisTurn = false;
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
             final Set<Case> pellets = new HashSet<>();
-            pelletsReserved = new HashSet<>();
+//            pelletsReserved = new HashSet<>();
             superPellets = new HashSet<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
@@ -149,7 +146,7 @@ class Player {
         final Pac enemyPac = enemyNearby(pac);
         if (enemyPac != null && !canKill(enemyPac, pac)) {
             move += "|SWITCH " + pac.id + " " + switchFormToKill(enemyPac);
-        } else if (!(turn == 0) && !(pacWhoUsedSpeed == pac.id) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y)) {
+        } else if (!(turn == 0) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y) && !pac.hasUsedCooldownLastTurn()) {
             final Case aCase = goBackward(pac);
             move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
         } else {
@@ -188,10 +185,10 @@ class Player {
     static Case findNextPellet(final Pac pac) {
         final Case caseTogo = Stream.of(potentialPellets, superPellets)
                 .flatMap(Collection::stream)
-                .filter(p -> !pelletsReserved.contains(p))
+//                .filter(p -> !pelletsReserved.contains(p))
                 .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
                 .get();
-        pelletsReserved.add(caseTogo);
+//        pelletsReserved.add(caseTogo);
         return caseTogo;
     }
 
@@ -238,6 +235,10 @@ class Player {
         String typeId;
         int speedTurnsLeft;
         int abilityCooldown;
+
+        public boolean hasUsedCooldownLastTurn() {
+            return this.abilityCooldown == 9;
+        }
 
         @Override
         public String toString() {
