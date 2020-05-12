@@ -3,7 +3,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 // TODO: Take care of wrap grid
-// TODO: Change Manhattan distance
+// TODO: Change Manhattan distance + instead of a Pac searching closest Case, put in the Case the distance with each Pacman
 // TODO: Decrease pound of pellet next to another pac (almost done)
 // TODO: When too close of an ally, move away from his target / choose a different target
 class Player {
@@ -27,7 +27,6 @@ class Player {
 
     static Case[][] map;
 
-//    static Map<Integer, Direction> directions = new HashMap<>();
     static int turn;
 
     public static void main(final String[] args) {
@@ -71,10 +70,9 @@ class Player {
                 pac.typeId = in.next();
                 pac.speedTurnsLeft = in.nextInt();
                 pac.abilityCooldown = in.nextInt();
-                if (mine) {
+                if (mine && !"DEAD".equals(pac.typeId)) {
                     allyPacs.put(pacId, pac);
-//                    setDirection(pac);
-                } else {
+                } else if (!"DEAD".equals(pac.typeId)) {
                     enemyPacs.put(pacId, pac);
                 }
                 map[pac.x][pac.y].value = 0;
@@ -165,27 +163,6 @@ class Player {
                 .forEach(c -> c.turnLastSeen++);
     }
 
-//    static void setDirection(final Pac pac) {
-//        final Pac lastPac;
-//        lastPac = allyPacsLastMove.get(pac.id);
-//        if (lastPac == null) {
-//            return;
-//        }
-//
-//        if (pac.x > lastPac.x) {
-//            directions.put(pac.id, Direction.EAST);
-//        }
-//        if (pac.x < lastPac.x) {
-//            directions.put(pac.id, Direction.WEST);
-//        }
-//        if (pac.y > lastPac.y) {
-//            directions.put(pac.id, Direction.SOUTH);
-//        }
-//        if (pac.y < lastPac.y) {
-//            directions.put(pac.id, Direction.NORTH);
-//        }
-//    }
-
     static void chooseMove(final Pac pac) {
         final Pac enemyPac = enemyNearby(pac);
         if (enemyPac != null && !canKill(enemyPac, pac) && pac.noCooldown()) {
@@ -198,7 +175,6 @@ class Player {
             if (caseTogo.getTaxicabDistance(pac.x, pac.y) > 2 && pac.noCooldown()) {
                 move += "|SPEED " + pac.id;
             } else {
-//            map[caseTogo.x][caseTogo.y].idPac = pac.id;
                 move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
             }
         }
@@ -235,7 +211,6 @@ class Player {
         return Arrays.stream(map)
                 .flatMap(Arrays::stream)
                 .filter(p -> p.value > 0)
-//                .filter(p -> p.idPac == -1 || p .idPac == pac.id)
                 .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y, pac.id)))
                 .get();
     }
@@ -271,13 +246,6 @@ class Player {
     enum Grid {
         FLOOR,
         WALL
-    }
-
-    enum Direction {
-        NORTH,
-        EAST,
-        SOUTH,
-        WEST
     }
 
     // OBJECTS
@@ -317,7 +285,6 @@ class Player {
         int y;
         int value;
         int turnLastSeen;
-        //        int idPac = -1;
         int idClosestPac;
 
         public Case(final int x, final int y) {
@@ -377,7 +344,6 @@ class Player {
                     ", y=" + this.y +
                     ", value=" + this.value +
                     ", turnLastSeen=" + this.turnLastSeen +
-//                    ", idPac=" + idPac +
                     ", idClosestPac=" + this.idClosestPac +
                     '}';
         }
