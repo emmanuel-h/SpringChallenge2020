@@ -1,10 +1,10 @@
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 // TODO: Take care of wrap grid
-// TODO: Remove some useless Cases (how to know cases without pellets ?).
-// TODO: Improve heuristic : Increase when a pac is nearby pellet
 // TODO: Change Manhattan distance
-// TODO: Decrease pound of pellet next to another pac
+// TODO: Decrease pound of pellet next to another pac (almost done)
 // TODO: When too close of an ally, move away from his target / choose a different target
 class Player {
 
@@ -23,9 +23,11 @@ class Player {
     static Map<Integer, Pac> enemyPacs = new HashMap<>();
     static Map<Integer, Pac> allyPacsLastMove = new HashMap<>();
 
+    static Set<Case> superPellets = new HashSet<>();
+
     static Case[][] map;
 
-    static Map<Integer, Direction> directions = new HashMap<>();
+//    static Map<Integer, Direction> directions = new HashMap<>();
     static int turn;
 
     public static void main(final String[] args) {
@@ -41,14 +43,15 @@ class Player {
         for (int i = 0; i < height; i++) {
             final String row = in.nextLine(); // one line of the grid: space " " is floor, pound "#" is wall
             for (int j = 0; j < row.length(); j++) {
-                    map[j][i] = ' ' == row.charAt(j)
-                            ? new Case(Grid.FLOOR, j, i, 1, 0)
-                            : new Case(Grid.WALL, j, i, 0, 0);
+                map[j][i] = ' ' == row.charAt(j)
+                        ? new Case(Grid.FLOOR, j, i, 1, 0)
+                        : new Case(Grid.WALL, j, i, 0, 0);
             }
         }
 
         // game loop
-        for (turn = 0; turn < 200 ; turn ++) {
+        for (turn = 0; turn < 200; turn++) {
+            Set<Case> superPelletsThisTurn = new HashSet<>();
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
             final Set<Case> visiblePellets = new HashSet<>();
@@ -70,7 +73,7 @@ class Player {
                 pac.abilityCooldown = in.nextInt();
                 if (mine) {
                     allyPacs.put(pacId, pac);
-                    setDirection(pac);
+//                    setDirection(pac);
                 } else {
                     enemyPacs.put(pacId, pac);
                 }
@@ -86,12 +89,15 @@ class Player {
                 visiblePellets.add(aCase);
                 if (value == 10) {
                     map[x][y].value = value;
+                    superPelletsThisTurn.add(map[x][y]);
                 }
+
             }
             removeNonExistentPelletsInSight(visiblePellets);
+            removeNonExistentSuperPellets(superPelletsThisTurn);
             findClosestPac();
             move = "";
-            for (final Pac pac: allyPacs.values()) {
+            for (final Pac pac : allyPacs.values()) {
                 chooseMove(pac);
             }
             System.out.println(move.substring(1));
@@ -101,6 +107,14 @@ class Player {
 
     // ALGORITHMS
 
+    static void removeNonExistentSuperPellets(final Set<Case> superPelletsThisTurn) {
+        if (turn != 0) {
+            superPellets.removeAll(superPelletsThisTurn);
+            superPellets.forEach(c -> map[c.x][c.y].value = 0);
+        }
+        superPellets = superPelletsThisTurn;
+    }
+
     static void findClosestPac() {
         Arrays.stream(map)
                 .flatMap(Arrays::stream)
@@ -109,7 +123,6 @@ class Player {
 
     static void removeNonExistentPelletsInSight(final Set<Case> visiblePellets) {
         for (final Pac pac : allyPacs.values()) {
-
             int x = pac.x + 1;
             int y = pac.y;
             while (x < width && map[x][y].type == Grid.FLOOR) {
@@ -152,38 +165,42 @@ class Player {
                 .forEach(c -> c.turnLastSeen++);
     }
 
-    static void setDirection(final Pac pac) {
-        final Pac lastPac;
-        lastPac = allyPacsLastMove.get(pac.id);
-        if (lastPac == null) {
-            return;
-        }
-
-        if (pac.x > lastPac.x) {
-            directions.put(pac.id, Direction.EAST);
-        }
-        if (pac.x < lastPac.x) {
-            directions.put(pac.id, Direction.WEST);
-        }
-        if (pac.y > lastPac.y) {
-            directions.put(pac.id, Direction.SOUTH);
-        }
-        if (pac.y < lastPac.y) {
-            directions.put(pac.id, Direction.NORTH);
-        }
-    }
+//    static void setDirection(final Pac pac) {
+//        final Pac lastPac;
+//        lastPac = allyPacsLastMove.get(pac.id);
+//        if (lastPac == null) {
+//            return;
+//        }
+//
+//        if (pac.x > lastPac.x) {
+//            directions.put(pac.id, Direction.EAST);
+//        }
+//        if (pac.x < lastPac.x) {
+//            directions.put(pac.id, Direction.WEST);
+//        }
+//        if (pac.y > lastPac.y) {
+//            directions.put(pac.id, Direction.SOUTH);
+//        }
+//        if (pac.y < lastPac.y) {
+//            directions.put(pac.id, Direction.NORTH);
+//        }
+//    }
 
     static void chooseMove(final Pac pac) {
         final Pac enemyPac = enemyNearby(pac);
         if (enemyPac != null && !canKill(enemyPac, pac) && pac.noCooldown()) {
             move += "|SWITCH " + pac.id + " " + switchFormToKill(enemyPac);
         } else if (!(turn == 0) && (pac.x == allyPacsLastMove.get(pac.id).x && pac.y == allyPacsLastMove.get(pac.id).y) && !pac.hasUsedCooldownLastTurn()) {
-            final Case aCase = goBackward(pac);
+            final Case aCase = goRandomDirection(pac);
             move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
         } else {
             final Case caseTogo = findNextPellet(pac);
+            if (caseTogo.getTaxicabDistance(pac.x, pac.y) > 2 && pac.noCooldown()) {
+                move += "|SPEED " + pac.id;
+            } else {
 //            map[caseTogo.x][caseTogo.y].idPac = pac.id;
-            move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
+                move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
+            }
         }
     }
 
@@ -201,12 +218,12 @@ class Player {
     }
 
     static boolean canKill(final Pac enemyPac, final Pac pac) {
-        return (SCISSORS.equals(enemyPac.typeId) && ROCK.equals(pac.typeId)) || (PAPER.equals(enemyPac.typeId) && SCISSORS.equals(pac.typeId)) ||(ROCK.equals(enemyPac.typeId) && PAPER.equals(pac.typeId));
+        return (SCISSORS.equals(enemyPac.typeId) && ROCK.equals(pac.typeId)) || (PAPER.equals(enemyPac.typeId) && SCISSORS.equals(pac.typeId)) || (ROCK.equals(enemyPac.typeId) && PAPER.equals(pac.typeId));
     }
 
     static Pac enemyNearby(final Pac pac) {
         Pac nearestEnemy = null;
-        for (final Pac enemyPac: enemyPacs.values()) {
+        for (final Pac enemyPac : enemyPacs.values()) {
             if ((enemyPac.x >= pac.x - 2 && enemyPac.x <= pac.x + 2) && (enemyPac.y >= pac.y - 2 && enemyPac.y <= pac.y + 2)) {
                 nearestEnemy = enemyPac;
             }
@@ -224,19 +241,29 @@ class Player {
     }
 
     // TODO: Take care when back is a wall (side case)
-    static Case goBackward(final Pac pac) {
-        switch (directions.get(pac.id)) {
-            case WEST:
-                return new Case(pac.x + 1, pac.y);
-            case EAST:
-                return new Case(pac.x - 1, pac.y);
-            case SOUTH:
-                return new Case(pac.x, pac.y - 1);
-            case NORTH:
-            default:
-                return new Case(pac.x, pac.y + 1);
+    static Case goRandomDirection(final Pac pac) {
+        final List<Case> cases = new ArrayList<>();
+        final List<Case> occupiedCases = Stream.of(allyPacs.values(), enemyPacs.values())
+                .flatMap(Collection::stream)
+                .map(p -> new Case(p.x, p.y))
+                .collect(Collectors.toList());
 
+        if (map[pac.x + 1][pac.y].type == Grid.FLOOR && !occupiedCases.contains(map[pac.x + 1][pac.y])) {
+            cases.add(map[pac.x + 1][pac.y]);
         }
+        if (map[pac.x - 1][pac.y].type == Grid.FLOOR && !occupiedCases.contains(map[pac.x + 1][pac.y])) {
+            cases.add(map[pac.x - 1][pac.y]);
+        }
+        if (map[pac.x][pac.y + 1].type == Grid.FLOOR && !occupiedCases.contains(map[pac.x + 1][pac.y])) {
+            cases.add(map[pac.x][pac.y + 1]);
+        }
+        if (map[pac.x][pac.y - 1].type == Grid.FLOOR && !occupiedCases.contains(map[pac.x + 1][pac.y])) {
+            cases.add(map[pac.x][pac.y - 1]);
+        }
+
+        return !cases.isEmpty()
+                ? cases.get(new Random().nextInt(cases.size()))
+                : map[pac.x][pac.y];
     }
 
     // UTILS
@@ -251,10 +278,6 @@ class Player {
         EAST,
         SOUTH,
         WEST
-    }
-
-    static boolean giveMeAChance(final int rand) {
-        return new Random().nextInt(rand) < 1;
     }
 
     // OBJECTS
@@ -294,7 +317,7 @@ class Player {
         int y;
         int value;
         int turnLastSeen;
-//        int idPac = -1;
+        //        int idPac = -1;
         int idClosestPac;
 
         public Case(final int x, final int y) {
@@ -311,9 +334,9 @@ class Player {
         }
 
         public int isWorth(final int playerX, final int playerY, final int playerId) {
-            int weight = this.getTaxicabDistance(playerX, playerY) - this.value + 2*(this.turnLastSeen);
+            int weight = this.getTaxicabDistance(playerX, playerY) - this.value + 2 * (this.turnLastSeen);
             if (this.idClosestPac != playerId) {
-                weight +=10;
+                weight += 10;
             }
             return weight;
         }
