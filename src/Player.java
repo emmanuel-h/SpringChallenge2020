@@ -1,6 +1,4 @@
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 // TODO: Take care of wrap grid
 // TODO: Remove some useless Cases (how to know cases without pellets ?).
@@ -19,13 +17,13 @@ class Player {
     static int height; // top left corner is (x=0, y=0)
     static int visiblePacCount; // all your pacs and enemy pacs in sight
     static int visiblePelletCount; // all pellets in sight
-    static Set<Case> potentialPellets = new HashSet<>();
-    static Set<Case> superPellets;
     static String move;
 
     static Map<Integer, Pac> allyPacs = new HashMap<>();
     static Map<Integer, Pac> enemyPacs = new HashMap<>();
     static Map<Integer, Pac> allyPacsLastMove = new HashMap<>();
+
+    static Case[][] map;
 
     static Map<Integer, Direction> directions = new HashMap<>();
     static int turn;
@@ -34,6 +32,7 @@ class Player {
         final Scanner in = new Scanner(System.in);
         width = in.nextInt();
         height = in.nextInt();
+        map = new Case[width][height];
 
         if (in.hasNextLine()) {
             in.nextLine();
@@ -42,9 +41,9 @@ class Player {
         for (int i = 0; i < height; i++) {
             final String row = in.nextLine(); // one line of the grid: space " " is floor, pound "#" is wall
             for (int j = 0; j < row.length(); j++) {
-                if (' ' == (row.charAt(j))) {
-                    potentialPellets.add(new Case(Grid.FLOOR, j, i, 1, 0));
-                }
+                    map[j][i] = ' ' == row.charAt(j)
+                            ? new Case(Grid.FLOOR, j, i, 1, 0)
+                            : new Case(Grid.WALL, j, i, 0, 0);
             }
         }
 
@@ -53,10 +52,12 @@ class Player {
             allyPacs = new HashMap<>();
             enemyPacs = new HashMap<>();
             final Set<Case> visiblePellets = new HashSet<>();
-            superPellets = new HashSet<>();
             myScore = in.nextInt();
             opponentScore = in.nextInt();
             visiblePacCount = in.nextInt(); // all your pacs and enemy pacs in sight
+            if (turn != 0) {
+                incrementLastSeen();
+            }
             for (int i = 0; i < visiblePacCount; i++) {
                 final int pacId = in.nextInt(); // pac number (unique within a team)
                 final boolean mine = in.nextInt() != 0; // true if this pac is yours
@@ -73,7 +74,7 @@ class Player {
                 } else {
                     enemyPacs.put(pacId, pac);
                 }
-                potentialPellets.remove(new Case(pac.x, pac.y));
+                map[pac.x][pac.y].value = 0;
             }
             visiblePelletCount = in.nextInt(); // all pellets in sight
             for (int i = 0; i < visiblePelletCount; i++) {
@@ -81,38 +82,74 @@ class Player {
                 final int y = in.nextInt();
                 final int value = in.nextInt(); // amount of points this pellet is worth
                 final Case aCase = new Case(Grid.FLOOR, x, y, value, turn);
+                map[x][y].turnLastSeen = 0;
+                visiblePellets.add(aCase);
                 if (value == 10) {
-                    superPellets.add(aCase);
-                } else {
-                    visiblePellets.add(aCase);
+                    map[x][y].value = value;
                 }
             }
+            removeNonExistentPelletsInSight(visiblePellets);
+            findClosestPac();
             move = "";
-            potentialPellets = updatePelletsList(visiblePellets);
             for (final Pac pac: allyPacs.values()) {
                 chooseMove(pac);
             }
             System.out.println(move.substring(1));
-            incrementLastSeen();
             allyPacsLastMove = allyPacs;
         }
     }
 
     // ALGORITHMS
 
-    static void incrementLastSeen() {
-        potentialPellets = potentialPellets.stream()
-                .map(p -> {
-                    p.turnLastSeen ++;
-                    return p;
-                })
-                .collect(Collectors.toSet());
+    static void findClosestPac() {
+        Arrays.stream(map)
+                .flatMap(Arrays::stream)
+                .forEach(Case::setClosestPac);
     }
 
-    static Set<Case> updatePelletsList(final Set<Case> pellets) {
-        final Set<Case> allPellets = new HashSet<>(pellets);
-        allPellets.addAll(potentialPellets);
-        return allPellets;
+    static void removeNonExistentPelletsInSight(final Set<Case> visiblePellets) {
+        for (final Pac pac : allyPacs.values()) {
+
+            int x = pac.x + 1;
+            int y = pac.y;
+            while (x < width && map[x][y].type == Grid.FLOOR) {
+                if (!visiblePellets.contains(new Case(x, y))) {
+                    map[x][y].value = 0;
+                }
+                x++;
+            }
+            x = pac.x - 1;
+            y = pac.y;
+            while (x >= 0 && map[x][y].type == Grid.FLOOR) {
+                if (!visiblePellets.contains(new Case(x, y))) {
+                    map[x][y].value = 0;
+                }
+                x--;
+            }
+
+            x = pac.x;
+            y = pac.y + 1;
+            while (y < height && map[x][y].type == Grid.FLOOR) {
+                if (!visiblePellets.contains(new Case(x, y))) {
+                    map[x][y].value = 0;
+                }
+                y++;
+            }
+            x = pac.x;
+            y = pac.y - 1;
+            while (y >= 0 && map[x][y].type == Grid.FLOOR) {
+                if (!visiblePellets.contains(new Case(x, y))) {
+                    map[x][y].value = 0;
+                }
+                y--;
+            }
+        }
+    }
+
+    static void incrementLastSeen() {
+        Arrays.stream(map)
+                .flatMap(Arrays::stream)
+                .forEach(c -> c.turnLastSeen++);
     }
 
     static void setDirection(final Pac pac) {
@@ -145,6 +182,7 @@ class Player {
             move += "|MOVE " + pac.id + " " + aCase.x + " " + aCase.y;
         } else {
             final Case caseTogo = findNextPellet(pac);
+//            map[caseTogo.x][caseTogo.y].idPac = pac.id;
             move += "|MOVE " + pac.id + " " + caseTogo.x + " " + caseTogo.y;
         }
     }
@@ -177,9 +215,11 @@ class Player {
     }
 
     static Case findNextPellet(final Pac pac) {
-        return Stream.of(potentialPellets, superPellets)
-                .flatMap(Collection::stream)
-                .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y)))
+        return Arrays.stream(map)
+                .flatMap(Arrays::stream)
+                .filter(p -> p.value > 0)
+//                .filter(p -> p.idPac == -1 || p .idPac == pac.id)
+                .min(Comparator.comparing(p -> p.isWorth(pac.x, pac.y, pac.id)))
                 .get();
     }
 
@@ -254,6 +294,8 @@ class Player {
         int y;
         int value;
         int turnLastSeen;
+//        int idPac = -1;
+        int idClosestPac;
 
         public Case(final int x, final int y) {
             this.x = x;
@@ -268,8 +310,22 @@ class Player {
             this.turnLastSeen = turnLastSeen;
         }
 
-        public int isWorth(final int playerX, final int playerY) {
-            return Math.abs(playerX - this.x) + Math.abs(playerY - this.y) - this.value + 2*(turn - this.turnLastSeen);
+        public int isWorth(final int playerX, final int playerY, final int playerId) {
+            int weight = this.getTaxicabDistance(playerX, playerY) - this.value + 2*(this.turnLastSeen);
+            if (this.idClosestPac != playerId) {
+                weight +=10;
+            }
+            return weight;
+        }
+
+        public int getTaxicabDistance(final int playerX, final int playerY) {
+            return Math.abs(playerX - this.x) + Math.abs(playerY - this.y);
+        }
+
+        public void setClosestPac() {
+            this.idClosestPac = allyPacs.values().stream()
+                    .min(Comparator.comparing(p -> this.getTaxicabDistance(p.x, p.y)))
+                    .get().id;
         }
 
         @Override
@@ -298,6 +354,8 @@ class Player {
                     ", y=" + this.y +
                     ", value=" + this.value +
                     ", turnLastSeen=" + this.turnLastSeen +
+//                    ", idPac=" + idPac +
+                    ", idClosestPac=" + this.idClosestPac +
                     '}';
         }
     }
