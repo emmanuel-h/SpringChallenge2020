@@ -200,7 +200,7 @@ class Player {
     static Pac enemyNearby(final Pac pac) {
         Pac nearestEnemy = null;
         for (final Pac enemyPac : enemyPacs.values()) {
-            if ((enemyPac.x >= pac.x - 2 && enemyPac.x <= pac.x + 2) && (enemyPac.y >= pac.y - 2 && enemyPac.y <= pac.y + 2)) {
+            if ((enemyPac.x >= pac.x - 1 && enemyPac.x <= pac.x + 1) && (enemyPac.y >= pac.y - 1 && enemyPac.y <= pac.y + 1)) {
                 nearestEnemy = enemyPac;
             }
         }
@@ -215,7 +215,6 @@ class Player {
                 .get();
     }
 
-    // TODO: Take care when back is a wall (side case)
     static Case goRandomDirection(final Pac pac) {
         final List<Case> cases = new ArrayList<>();
         final List<Case> occupiedCases = Stream.of(allyPacs.values(), enemyPacs.values())
@@ -301,9 +300,9 @@ class Player {
         }
 
         public int isWorth(final int playerX, final int playerY, final int playerId) {
-            int weight = this.getTaxicabDistance(playerX, playerY) - this.value + 2 * (this.turnLastSeen);
+            int weight = this.getTaxicabDistance(playerX, playerY) - (this.value * 2) + this.turnLastSeen;
             if (this.idClosestPac != playerId) {
-                weight += 10;
+                weight += 20;
             }
             return weight;
         }
