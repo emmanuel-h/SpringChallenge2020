@@ -312,7 +312,8 @@ class Player {
         }
 
         public void setClosestPac() {
-            this.idClosestPac = allyPacs.values().stream()
+            this.idClosestPac = Stream.of(allyPacs.values(), enemyPacs.values())
+                    .flatMap(Collection::stream)
                     .min(Comparator.comparing(p -> this.getTaxicabDistance(p.x, p.y)))
                     .get().id;
         }
