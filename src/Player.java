@@ -180,13 +180,10 @@ class Player {
         return max <= 0 ? findNextPellet(pac).coord : coordToGo;
     }
 
-    // TODO: Don't take superPellet if anotherPacman is the nearest
-    static Case getNearestSuperPellet(final Pac pac, final List<Case> superPelletsThisTurn) {
-        final Case aCase = superPelletsThisTurn.stream()
-                .min(Comparator.comparing(c -> c.getTaxicabDistance(pac.coord)))
-                .get();
-        superPelletsThisTurn.remove(aCase);
-        return aCase;
+    static Optional<Case> getNearestSuperPellet(final Pac pac, final List<Case> superPelletsThisTurn) {
+        return superPelletsThisTurn.stream()
+                .filter(c -> c.idClosestPac == pac.id)
+                .min(Comparator.comparing(c -> c.getTaxicabDistance(pac.coord)));
     }
 
     static void removeNonExistentPelletsInSight(final Set<Case> visiblePellets) {
@@ -239,7 +236,8 @@ class Player {
             final Case aCase = goRandomDirection(pac);
             move += "|MOVE " + pac.id + " " + aCase.coord.x + " " + aCase.coord.y;
         } else {
-            final Case caseTogo = superPelletsThisTurn.isEmpty() ? map.get(getMostValuableCase(pac)) : getNearestSuperPellet(pac, superPelletsThisTurn);
+            final Case caseTogo = getNearestSuperPellet(pac, superPelletsThisTurn)
+                    .orElseGet(() -> map.get(getMostValuableCase(pac)));
             if (pac.noCooldown()) {
                 move += "|SPEED " + pac.id;
             } else {
