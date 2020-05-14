@@ -2,10 +2,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// TODO: Take care of wrap grid
-// TODO: Change Manhattan distance + instead of a Pac searching closest Case, put in the Case the distance with each Pacman
-// TODO: Decrease pound of pellet next to another pac (almost done)
-// TODO: When too close of an ally, move away from his target / choose a different target
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -148,21 +144,36 @@ class Player {
         map.values().forEach(Case::setClosestPac);
     }
 
+    // TODO: Don't go on Pac cases
     static Coord getMostValuableCase(final Pac pac) {
         final List<Case[]> paths = new ArrayList<>();
+        final List<Coord> pacs = Stream.of(allyPacs.values(), enemyPacs.values())
+                .flatMap(Collection::stream)
+                .map(p -> p.coord)
+                .collect(Collectors.toList());
 
         final Case[] path = new Case[5];
         for (final Case case0 : map.get(pac.coord).adjacentCases) {
-            path[0] = case0;
-            for (final Case case1 : case0.adjacentCases) {
-                path[1] = case1;
-                for (final Case case2 : case1.adjacentCases) {
-                    path[2] = case2;
-                    for (final Case case3 : case2.adjacentCases) {
-                        path[3] = case3;
-                        for (final Case case4 : case3.adjacentCases) {
-                            path[4] = case4;
-                            paths.add(path.clone());
+            if (!pacs.contains(case0.coord)) {
+                path[0] = case0;
+                for (final Case case1 : case0.adjacentCases) {
+                    if (!pacs.contains(case1.coord)) {
+                        path[1] = case1;
+                        for (final Case case2 : case1.adjacentCases) {
+                            if (!pacs.contains(case2.coord)) {
+                                path[2] = case2;
+                                for (final Case case3 : case2.adjacentCases) {
+                                    if (!pacs.contains(case3.coord)) {
+                                        path[3] = case3;
+                                        for (final Case case4 : case3.adjacentCases) {
+                                            if (!pacs.contains(case4.coord)) {
+                                                path[4] = case4;
+                                                paths.add(path.clone());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -366,7 +377,6 @@ class Player {
         int value;
         int turnLastSeen;
         int idClosestPac;
-
         List<Case> adjacentCases = new ArrayList<>();
 
         public Case(final int x, final int y) {
