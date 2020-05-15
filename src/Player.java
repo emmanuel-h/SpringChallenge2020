@@ -2,6 +2,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+// TODO: Decrease pound of pellet next to another pac (almost done)
+// TODO: When too close of an ally, move away from his target / choose a different target
 class Player {
 
     public static final String SCISSORS = "SCISSORS";
@@ -151,6 +153,12 @@ class Player {
                 .flatMap(Collection::stream)
                 .map(p -> p.coord)
                 .collect(Collectors.toList());
+
+        if (map.get(pac.coord).adjacentCases.stream().filter(c -> c.value > 0).filter(
+                c -> c.adjacentCases.size() == 1
+        ).count() == 1) {
+            return map.get(pac.coord).adjacentCases.stream().filter(c -> c.value > 0).collect(Collectors.toList()).get(0).coord;
+        }
 
         final Case[] path = new Case[5];
         for (final Case case0 : map.get(pac.coord).adjacentCases) {
